@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="eng">
+<head>
+    <title>VoIP - Client End</title>
+    <link rel="stylesheet" href="voip/css/font-awesome.min.css">
+    <link rel="stylesheet" href="voip/css/voip-client.css">
+    <script type="text/javascript" src="voip/js/jquery-1.12.4.min.js"></script>
+    <script type="text/javascript" src="voip/js/peer.js"></script>
+    <script type="text/javascript" src="voip/js/cookiehandler.js"></script>
+    <script type="text/javascript">
+    	navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+    	var peer = new Peer();
+		peer.on( "open" , function()
+		{
+			var newid = peer.id;
+			setCookie( "myid" , newid , 365 );
+			$( "#log" ).text( "Your Peer ID is: " + newid );
+		});
+		const ws = new WebSocket('ws://5.189.167.148:9001/');
+    	setCookie( "mytoken" , "YjA3NDY1ODRlYTVlYjc3MzExMWI1NDA5" , 365 );
+    	var remotePeerID;
+    	$( document ).ready(function()
+		{
+			$( "#end-call" ).hide();
+			setTimeout(function()
+			{
+				const jsonString = '{"command":"updatePeerID","token":"' + getCookie( "mytoken" ) + '","peerID":"' + getCookie( "myid" ) + '"}';
+            	ws.send( jsonString );
+			},1000);
+			$( "#start-call" ).on( "click", function() { answer(); } );
+		});
+	    ws.onclose = function () { alert( "disconnected" ); };
+	    ws.onmessage = function ( event )
+	    {
+	        var pervizstring = event.data;
+	        var log = document.getElementById( 'log' );
+	    	log.innerHTML += "<br>" + pervizstring;
+	        var pervizobject = JSON.parse( pervizstring );
+	        if ( pervizobject.status == "ok" )
+	        {
+	        	switch( pervizobject.command )
+	        	{
+	        		case "login":
+	        			mytoken = pervizobject.token;
+	        			login( mytoken );
+	        			break;
+	        		case "updatePeerID":
+	        			updatePeerID( pervizobject.token );
+	        			break;
+	        		case "startringing":
+	        			startringing( pervizobject.callerPeerID ,"voip/sounds/calling.mp3");
+	        			break;
+	        		case "busy":
+	        			startringing( pervizobject.callerPeerID,"voip/sounds/busy.mp3" );
+	        			break;
+	        		case "stopringing":
+	        			stopringing();
+	        			break;
+	        		case "endcall":
+        				endCall();
+        				break;
+        			case "reject":
+        				reject();
+        				break;
+	        		default:
+	        			notification = "Something went wrong";
+	        	}
+	        }
+	    };
+	    function login( token )
+	    {
+	    	const json_string = '{"command":"updatePeerID","token":"'+ getCookie( "mytoken" ) +'","peerID":"'+ getCookie( "myid" ) +'"}';
+	    	ws.send( json_string );
+	    };
+	    function updatePeerID( token )
+	    {
+	    	var log = document.getElementById( 'log' );
+	    	log.innerHTML += "<br>" + token;
+	    	var x = document.getElementById("reject-call");
+	    	x.style.display = "none";
+
+	    };
+	    function startringing( callerPeerID , rbt)
+	    {
+	    	remotePeerID = callerPeerID;
+	    	audio = new Audio( rbt );
+			audio.loop = true;
+			audio.play();
+	    	var phone = document.getElementById( 'start-call' );
+	    	phone.classList.add( "animate" );
+	    	var reject = document.getElementById( 'reject-call' );
+	    	reject.style.display = "block";
+	    	reject.classList.add( "animate" );
+	    };
+	    function answer()
+	    {   
+	    	const json_string = '{"command":"answer","token":"'+ getCookie( "mytoken" ) +'","callerPeerID":"'+ remotePeerID +'"}';
+	    	ws.send( json_string );
+	    };
+	    function stopringing()
+	    {
+	    	audio.pause();
+	    	var phone = document.getElementById( 'start-call' );
+	    	phone.classList.remove( "animate" );
+	    	$( "#start-call" ).hide();
+	    	$( "#end-call" ).show();
+	    	$( "#reject-call" ).hide();
+	    }
+
+	     function reject()
+	    {
+	    	audio.pause();
+	    	var phone = document.getElementById( 'start-call' );
+	    	phone.classList.remove( "animate" );
+	    	var reject = document.getElementById( 'reject-call' );
+	    	reject.classList.remove( "animate" );
+	    	$("#start-call").show();
+	    	$("#end-call").hide();
+	    	$("#reject-call").hide();
+	    }
+
+	    // Receiving a call
+		peer.on( "call" , function( call )
+		{
+			// Answer the call automatically (instead of prompting user) for demo purposes
+			call.answer( window.localStream );
+			step3( call );
+		});
+		peer.on( "error" , function( err )
+		{
+			alert( err.message );
+			// Return to step 2 if error occurs
+			step2();
+		});
+		// Click handlers setup
+		$(function()
+		{
+			$( "#start-call" ).click( function()
+			{
+				// Initiate a call!
+				var call = peer.call( $( "#callto-id" ).val() , window.localStream );
+				step3( call );
+			});
+			$( "#end-call" ).click( function()
+			{
+				window.existingCall.close();
+				const json_string = '{"command":"endcall","token":"'+ getCookie( "mytoken" ) +'","remotePeerID":"'+ remotePeerID +'"}';
+	    	    ws.send( json_string );
+				step2();
+			});
+			$( "#reject-call" ).click( function()
+			{
+				const json_string = '{"command":"reject","token":"'+ getCookie( "mytoken" ) +'","callerPeerID":"'+ remotePeerID +'"}';
+	    	    ws.send( json_string );
+				step2();
+			});
+			// Retry if getUserMedia fails
+			$( "#step1-retry" ).click( function()
+			{
+				$( "#step1-error" ).hide();
+				step1();
+			});
+			// Get things started
+			step1();
+		});
+		function endCall()
+		{
+			$( "#start-call" ).show();
+			audio.pause();
+			audio.currentTime = 0;
+			$( "#end-call" ).hide();
+			$( "#reject-call" ).hide();
+		} ;
+
+		function rejectCall()
+		{
+			$( "#start-call" ).show();
+			audio.pause();
+			audio.currentTime = 0;
+			$( "#end-call" ).hide();
+			$( "#reject-call" ).hide();
+		}
+
+		function step1()
+		{
+			// Get audio/video stream
+			navigator.getUserMedia( {audio: true, video: false} , function( stream )
+			{
+				// Set your video displays
+				$( "#my-video" ).prop( "src" , URL.createObjectURL( stream ));
+				window.localStream = stream;
+				step2();
+			},
+			function()
+			{
+				$( "#step1-error" ).show();
+			});
+		}
+		function step2()
+		{
+			$( "#step1, #step3" ).hide();
+			$( "#step2" ).show();
+		}
+		function step3( call )
+		{
+			// Hang up on an existing call if present
+			if ( window.existingCall )
+			{
+				window.existingCall.close();
+			}
+			// Wait for stream on the call, then set peer video display
+			call.on( "stream" , function( stream )
+			{
+				$( "#their-video" ).prop( "src" , URL.createObjectURL( stream ));
+			});
+			// UI stuff
+			window.existingCall = call;
+		}
+    </script>
+
+
+</head>
+<body>
+	<div class="pure-u-2-3" id="video-container">
+			<video id="their-video" autoplay></video>
+			<video id="my-video" muted="true" autoplay></video>
+		</div>
+	<p id="log" style="margin: 20px auto;text-align: center;color: #3d5b68;"></p>
+	<div class="voip-panel">
+		<div id="start-call" class="start call">
+			<i class="fa fa-phone" style=""></i>
+		</div>
+		<div id="end-call" class="end call">
+			<i class="fa fa-phone" style=""></i>
+		</div>
+	    <div id="reject-call" class="reject call">
+			<i class="fa fa-phone" style=""></i>
+		</div>
+	</div>
+</body>
+</html>

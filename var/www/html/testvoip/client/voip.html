@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="eng">
+<head>
+    <title>Voice Call</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="assets/css/font-awesome.min.css">
+    <link rel="stylesheet" href="assets/css/voip.css">
+    <script type="text/javascript" src="assets/js/jquery-1.12.4.min.js"></script>
+    <script type="text/javascript" src="assets/js/peer.js"></script>
+    <script type="text/javascript">
+    	var peerid;
+    	navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+		var peer = new Peer();
+		peer.on( "open" , function()
+		{
+			var newid = peer.id;
+			peerid = newid;
+			$( "#log" ).text( "Your Peer ID is: " + newid );
+		});
+		// Receiving a call
+		peer.on( "call" , function( call )
+		{
+			// Answer the call automatically (instead of prompting user) for demo purposes
+			call.answer( window.localStream );
+			step3( call );
+		});
+		peer.on( "error" , function( err )
+		{
+			alert( err.message );
+			// Return to step 2 if error occurs
+			step2();
+		});
+		// Click handlers setup
+		$(function()
+		{
+			$( "#make-call" ).click( function()
+			{
+				// Initiate a call!
+				var call = peer.call( $( "#callto-id" ).val() , window.localStream );
+				step3( call );
+			});
+			$( "#end-call" ).click( function()
+			{
+				window.existingCall.close();
+				step2();
+			});
+			// Retry if getUserMedia fails
+			$( "#step1-retry" ).click( function()
+			{
+				$( "#step1-error" ).hide();
+				step1();
+			});
+			// Get things started
+			step1();
+		});
+		function step1()
+		{
+			// Get audio/video stream
+			navigator.getUserMedia( {audio: true, video: false} , function( stream )
+			{
+				// Set your video displays
+				$( "#my-video" ).prop( "src" , URL.createObjectURL( stream ));
+				window.localStream = stream;
+				step2();
+			},
+			function()
+			{
+				$( "#step1-error" ).show();
+			});
+		}
+		function step2()
+		{
+			$( "#step1, #step3" ).hide();
+			$( "#step2" ).show();
+		}
+		function step3( call )
+		{
+			// Hang up on an existing call if present
+			if ( window.existingCall )
+			{
+				window.existingCall.close();
+			}
+			// Wait for stream on the call, then set peer video display
+			call.on( "stream" , function( stream )
+			{
+				$( "#their-video" ).prop( "src" , URL.createObjectURL( stream ));
+			});
+			// UI stuff
+			window.existingCall = call;
+			$( "#their-id" ).text( call.peer );
+			call.on( "close" , step2 );
+			$( "#step1, #step2" ).hide();
+			$( "#step3" ).show();
+		}
+    </script>
+</head>
+<body>
+	<div class="voip-main">
+		<div class="voip-header" id="header">
+			<div class="text">
+				<b>Header Text</b>
+			</div>
+			<div class="icon">
+				<i class="fa fa-times"></i>
+			</div>
+		</div>
+		<div class="voip-body">
+			<input type="text" id="username" placeholder="username" required />
+			<input type="password" id="password" placeholder="password" required />
+			<button class="button" id="voip-login"><i class="fa fa-sign-in"></i></button>
+			<p>If the color of this section becomes green then you have successfuly connected to the server. But in order to receive token you must enter your credentials.</p>
+			<p id="log">Don't pay attention. This area will show only logs.</p>
+		</div>
+	</div>
+	<div class="callicon" id="phone">
+		<i class="fa fa-phone" style=""></i>
+	</div>
+	<script type="text/javascript">
+		var mytoken;
+		const ws = new WebSocket('ws://5.189.167.148:9001/');
+	    ws.onopen = function ()
+	    {
+	        document.getElementById( 'header' ).style.backgroundColor = '#99ff33';
+	        document.getElementById( 'header' ).style.color = '#59b300';
+	        document.getElementById( 'voip-login' ).style.backgroundColor = '#99ff33';
+	        document.getElementById( 'voip-login' ).style.color = '#59b300';
+	    };
+	    ws.onclose = function ()
+	    {
+	        document.getElementById( 'header' ).style.backgroundColor = '#e5e7e7';
+	        document.getElementById( 'header' ).style.color = '#3d5b68';
+	        document.getElementById( 'voip-login' ).style.backgroundColor = '#e5e7e7';
+	        document.getElementById( 'voip-login' ).style.color = '#3d5b68';
+	    };
+	    ws.onmessage = function ( event )
+	    {
+	        var pervizstring = event.data;
+	        alert(pervizstring);
+	        var pervizobject = JSON.parse( pervizstring );
+	        if ( pervizobject.status == "ok" )
+	        {
+	        	switch( pervizobject.command )
+	        	{
+	        		case "login":
+	        			mytoken = pervizobject.token;
+	        			login( mytoken );
+	        			break;
+	        		case "updatePeerID":
+	        			updatePeerID();
+	        			break;
+	        		case "startringing":
+	        			startringing();
+	        			break;
+	        		case "stopringing":
+	        			stopringing();
+	        			break;
+	        		default:
+	        			notification = "Something went wrong";
+	        	}
+	        }
+	    };
+	    function login( token )
+	    {
+	    	const json_string = '{"command":"updatePeerID","token":"'+token+'","peerID":"'+peerid+'"}';
+	    	ws.send( json_string );
+	    };
+	    function updatePeerID()
+	    {
+			audio = new Audio( 'assets/sounds/skype_call.mp3' );
+			audio.loop = true;
+			
+			audio.play();
+	    	var phone = document.getElementById( 'phone' );
+	    	$( ".voip-main" ).hide();
+	    	phone.classList.add( "callicon-animate" );
+	    };
+	    function voipLoginClick()
+	    {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const json_string = '{"command":"login","username":"'+username+'","password":"'+password+'"}';
+            ws.send( json_string );
+        }
+        document.getElementById('voip-login').addEventListener('click', voipLoginClick, false);
+  	</script>
+</body>
+</html>
