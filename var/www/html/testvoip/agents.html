@@ -1,0 +1,60 @@
+<html>
+<head>
+    <script src="jquery-1.12.4.min.js"></script>
+	<script src="cookiehandler.js"></script>
+	<script src="peer.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet"/>
+	
+</head>
+<body>
+    <!-- sidebar starts here -->
+    
+    <!-- sidebar ends here -->
+
+    <!-- main container starts here -->
+    <!-- main ends starts here -->
+
+    <!-- Peer JS call content hidden starts here -->
+    <div class="pure-u-2-3" id="video-container">
+        <video id="their-video" autoplay></video>
+       <!-- <video id="my-video" muted="true" autoplay></video>.  -->
+    </div>
+    <!-- Peer JS call content hidden ends here -->
+
+    <!-- On call receive hidden block starts here -->
+    <div class="call-modal-block" >
+        <div class="call-modal">
+            <div class="row">
+                <h3 id="call-heading">Hi There!</h3>
+            </div>
+            <div class="row">
+                <p id="call-text">It seems you have a call.</p>
+            </div>
+            <div class="row">
+                <div class="col-lg-6">
+                    <button type="button" class="btn btn-success btn-block" id="answer-call-btn">Answer</button>
+                </div>
+                <div class="col-lg-6">
+                    <button type="button" class="btn btn-danger btn-block" id="reject-call-btn">Reject</button>
+                </div>
+            </div>
+            <div class="row" style="margin-top: 15px;">
+                <div class="col-lg-12">
+                    <select class="form-control" id="context"></select>
+                    <button type="button" class="btn btn-block" id="forward-call-btn">Forward Call</button>
+                    <button type="button" class="btn btn-block" id="end-call-btn">End Call</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- On call receive hidden block ends here -->
+
+    <!-- Modal starts here -->
+    <!-- Modal ends here -->
+   <script src="agents.page.js"></script>
+
+    
+</body>
+</html>
